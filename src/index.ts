@@ -1,6 +1,6 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const app = express();
 app.use(express.json());
@@ -14,15 +14,13 @@ interface User {
   passwordHash: string;
 }
 
-// In-memory store (demo purposes)
-const users: Map<string, User> = new Map();
+const users = new Map<string, User>();
 
 app.post('/auth/register', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
-
   const passwordHash = await bcrypt.hash(password, 10);
   const id = crypto.randomUUID();
   users.set(email, { id, email, passwordHash });
@@ -32,14 +30,12 @@ app.post('/auth/register', async (req, res) => {
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const user = users.get(email);
-
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  // BUG: bcrypt.compare is async but we're not awaiting it
-  // This always evaluates to truthy (the Promise object) so any password works
-  const valid = bcrypt.compare(password, user.passwordHash);
+  // FIX: await bcrypt.compare so it returns the actual boolean, not a Promise
+  const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -47,7 +43,6 @@ app.post('/auth/login', async (req, res) => {
   const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
     expiresIn: TOKEN_EXPIRY,
   });
-
   res.json({ token });
 });
 
@@ -56,7 +51,6 @@ app.get('/auth/verify', (req, res) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
   }
-
   try {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, JWT_SECRET);
