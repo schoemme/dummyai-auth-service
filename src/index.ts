@@ -37,9 +37,7 @@ app.post('/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  // BUG: bcrypt.compare is async but we're not awaiting it
-  // This always evaluates to truthy (the Promise object) so any password works
-  const valid = bcrypt.compare(password, user.passwordHash);
+  const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
